@@ -65,7 +65,7 @@ def gpu_setup(use_gpu, gpu_id):
     VIEWING MODEL CONFIG AND PARAMS
 """
 def view_model_param(MODEL_NAME, net_params):
-    model = gnn_model(MODEL_NAME, net_params)
+    model = gnn_model(MODEL_NAME, net_params)   # 모델 파라미터 개수 세려고 여기서 잠깐 로드함
     total_param = 0
     print("MODEL DETAILS:\n")
     #print(model)
@@ -80,7 +80,7 @@ def view_model_param(MODEL_NAME, net_params):
     TRAINING CODE
 """
 
-def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs):
+def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs):  # dataset: data.SBMs.SBMsDataset object
     
     start0 = time.time()
     per_epoch_time = []
@@ -90,7 +90,7 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs):
     if net_params['lap_pos_enc']:
         st = time.time()
         print("[!] Adding Laplacian positional encoding.")
-        dataset._add_laplacian_positional_encodings(net_params['pos_enc_dim'])
+        dataset._add_laplacian_positional_encodings(net_params['pos_enc_dim'])  # eg. net_params['pos_enc_dim']: 2. self.train/val/test에 pos_enc_dimc차원의 pos_emb를 만들어 저장. 
         print('Time LapPE:',time.time()-st)
         
     if net_params['wl_pos_enc']:
@@ -129,7 +129,7 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs):
     print("Test Graphs: ", len(testset))
     print("Number of Classes: ", net_params['n_classes'])
 
-    model = gnn_model(MODEL_NAME, net_params)
+    model = gnn_model(MODEL_NAME, net_params) # 여기서 모델이 로드됨
     model = model.to(device)
 
     optimizer = optim.Adam(model.parameters(), lr=params['init_lr'], weight_decay=params['weight_decay'])
@@ -242,8 +242,8 @@ def main():
     """
     
     
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--config', help="Please give a config.json file with training/model/data/param details")
+    parser = argparse.ArgumentParser() # default를 명시 안 하면 자동으로 None
+    parser.add_argument('--config', default='configs/SBMs_GraphTransformer_LapPE_PATTERN_500k_sparse_graph_BN.json', help="Please give a config.json file with training/model/data/param details")
     parser.add_argument('--gpu_id', help="Please give a value for gpu id")
     parser.add_argument('--model', help="Please give a value for model name")
     parser.add_argument('--dataset', help="Please give a value for dataset name")
@@ -332,7 +332,7 @@ def main():
     if args.residual is not None:
         net_params['residual'] = True if args.residual=='True' else False
     if args.edge_feat is not None:
-        net_params['edge_feat'] = True if args.edge_feat=='True' else False
+        net_params['edge_feat'] = True if args.edge_feat=='True' else False # eedge_feat은 이렇게 하면 key 자체가 없음. 근데 쓰이질 않아서 에러 안 남
     if args.readout is not None:
         net_params['readout'] = args.readout
     if args.n_heads is not None:
@@ -355,8 +355,8 @@ def main():
         net_params['wl_pos_enc'] = True if args.pos_enc=='True' else False
         
     # SBM
-    net_params['in_dim'] = torch.unique(dataset.train[0][0].ndata['feat'],dim=0).size(0) # node_dim (feat is an integer)
-    net_params['n_classes'] = torch.unique(dataset.train[0][1],dim=0).size(0)
+    net_params['in_dim'] = torch.unique(dataset.train[0][0].ndata['feat'],dim=0).size(0) # dataset.train[0][0]: node_feature  # node_dim (feat is an integer) eg. SBM일 때는 3
+    net_params['n_classes'] = torch.unique(dataset.train[0][1],dim=0).size(0) # dataset.train[0][1]: label
     
 
     root_log_dir = out_dir + 'logs/' + MODEL_NAME + "_" + DATASET_NAME + "_GPU" + str(config['gpu']['id']) + "_" + time.strftime('%Hh%Mm%Ss_on_%b_%d_%Y')

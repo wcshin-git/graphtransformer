@@ -13,7 +13,7 @@ import networkx as nx
 
 import hashlib
 
-class load_SBMsDataSetDGL(torch.utils.data.Dataset):
+class load_SBMsDataSetDGL(torch.utils.data.Dataset):  # SBMsDataset에서 pkl로드하면 self.train/val/test가 이걸로 되어 있네
 
     def __init__(self,
                  data_dir,
@@ -148,15 +148,15 @@ def laplacian_positional_encoding(g, pos_enc_dim):
     """
 
     # Laplacian
-    A = g.adjacency_matrix_scipy(return_edge_ids=False).astype(float)
-    N = sp.diags(dgl.backend.asnumpy(g.in_degrees()).clip(1) ** -0.5, dtype=float)
+    A = g.adjacency_matrix_scipy(return_edge_ids=False).astype(float)  # Return the scipy adjacency matrix representation of this graph. -> format:'csr'
+    N = sp.diags(dgl.backend.asnumpy(g.in_degrees()).clip(1) ** -0.5, dtype=float) # g.in_degrees(): tensor([30, 45, 43,...]) np.clip(value)은 value 이하의 값을 value로 치환함. 
     L = sp.eye(g.number_of_nodes()) - N * A * N
 
     # Eigenvectors with scipy
     #EigVal, EigVec = sp.linalg.eigs(L, k=pos_enc_dim+1, which='SR')
-    EigVal, EigVec = sp.linalg.eigs(L, k=pos_enc_dim+1, which='SR', tol=1e-2) # for 40 PEs
+    EigVal, EigVec = sp.linalg.eigs(L, k=pos_enc_dim+1, which='SR', tol=1e-2) # EigVal: (pos_enc_dim+1,), EigVec: (108, 3)  for 40 PEs  # Find k eigenvalues and eigenvectors of the square matrix A. ‘SR’ : smallest real part
     EigVec = EigVec[:, EigVal.argsort()] # increasing order
-    g.ndata['lap_pos_enc'] = torch.from_numpy(EigVec[:,1:pos_enc_dim+1]).float() 
+    g.ndata['lap_pos_enc'] = torch.from_numpy(EigVec[:,1:pos_enc_dim+1]).float() # (num_nodes, pos_enc_dim)이 저장된다
 
     return g
 
@@ -229,11 +229,11 @@ class SBMsDataset(torch.utils.data.Dataset):
         self.name = name
         data_dir = 'data/SBMs/'
         with open(data_dir+name+'.pkl',"rb") as f:
-            f = pickle.load(f)
+            f = pickle.load(f)  # list of len=3. eg. name = 'SBM_PATTERN'
             self.train = f[0]
             self.val = f[1]
             self.test = f[2]
-        print('train, test, val sizes :',len(self.train),len(self.test),len(self.val))
+        print('train, test, val sizes :',len(self.train),len(self.test),len(self.val))  # 별도의 그래프가 10000개/2000개/2000개가 있네? 
         print("[I] Finished loading.")
         print("[I] Data load time: {:.4f}s".format(time.time()-start))
 
@@ -242,8 +242,8 @@ class SBMsDataset(torch.utils.data.Dataset):
     def collate(self, samples):
         # The input samples is a list of pairs (graph, label).
         graphs, labels = map(list, zip(*samples))
-        labels = torch.cat(labels).long()
-        batched_graph = dgl.batch(graphs)
+        labels = torch.cat(labels).long()  # 일렬로 쭉 통합됨. eg. torch.Size([2939])
+        batched_graph = dgl.batch(graphs)  # dgl.batch(list): 그래프를 통합해서 하나의 그래프로 만들어버림.  a batch of graphs can be viewed as a large graph that have many disjoint connected components.
 
         return batched_graph, labels
     
@@ -266,10 +266,10 @@ class SBMsDataset(torch.utils.data.Dataset):
         self.test.graph_lists = [make_full_graph(g) for g in self.test.graph_lists]
 
 
-    def _add_laplacian_positional_encodings(self, pos_enc_dim):
+    def _add_laplacian_positional_encodings(self, pos_enc_dim):  # eg. pos_enc_dim: 2
         
         # Graph positional encoding v/ Laplacian eigenvectors
-        self.train.graph_lists = [laplacian_positional_encoding(g, pos_enc_dim) for g in self.train.graph_lists]
+        self.train.graph_lists = [laplacian_positional_encoding(g, pos_enc_dim) for g in self.train.graph_lists] # 1000개의 독립적인 그래프들에 대해 다 pos_emb구하고 그래프의 attr에 저장
         self.val.graph_lists = [laplacian_positional_encoding(g, pos_enc_dim) for g in self.val.graph_lists]
         self.test.graph_lists = [laplacian_positional_encoding(g, pos_enc_dim) for g in self.test.graph_lists]
 

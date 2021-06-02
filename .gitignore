@@ -17,3 +17,4 @@ data/molecules/zinc-full/*.pkl
 
 dataset/
 
+.vscode/

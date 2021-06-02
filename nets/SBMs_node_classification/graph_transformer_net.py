@@ -42,7 +42,7 @@ class GraphTransformerNet(nn.Module):
         if self.wl_pos_enc:
             self.embedding_wl_pos_enc = nn.Embedding(max_wl_role_index, hidden_dim)
         
-        self.embedding_h = nn.Embedding(in_dim_node, hidden_dim) # node feat is an integer
+        self.embedding_h = nn.Embedding(in_dim_node, hidden_dim) # node feat is an integer.   # TODO: 우리는 node feature가 one-hot이라 Linear로 matrix연산해야 함
         
         self.in_feat_dropout = nn.Dropout(in_feat_dropout)
         
@@ -52,7 +52,7 @@ class GraphTransformerNet(nn.Module):
         self.MLP_layer = MLPReadout(out_dim, n_classes)
 
 
-    def forward(self, g, h, e, h_lap_pos_enc=None, h_wl_pos_enc=None):
+    def forward(self, g, h, e, h_lap_pos_enc=None, h_wl_pos_enc=None):  # e가 안 쓰이네. e는 batch그래프 안에 있는 edge개수만큼 1로 채워진 torch.Size([tot_nem_edges_in_batch, 1])
 
         # input embedding
         h = self.embedding_h(h)
@@ -66,10 +66,10 @@ class GraphTransformerNet(nn.Module):
         
         # GraphTransformer Layers
         for conv in self.layers:
-            h = conv(g, h)
+            h = conv(g, h)  # head_out: torch.Size([num_nodes_in_batch, dim_hidden])
             
         # output
-        h_out = self.MLP_layer(h)
+        h_out = self.MLP_layer(h)  # eg. h_out: [num_nodes_in_batch, 2]
 
         return h_out
     
@@ -78,7 +78,7 @@ class GraphTransformerNet(nn.Module):
 
         # calculating label weights for weighted loss computation
         V = label.size(0)
-        label_count = torch.bincount(label)
+        label_count = torch.bincount(label)  # torch.bincount: label의 max값이 1이면 길이 2짜리인데 각각은 0의 개수, 1의 개수를 담고 있음
         label_count = label_count[label_count.nonzero()].squeeze()
         cluster_sizes = torch.zeros(self.n_classes).long().to(self.device)
         cluster_sizes[torch.unique(label)] = label_count
